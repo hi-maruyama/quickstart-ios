@@ -28,24 +28,29 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
   var localCollection: LocalCollection<Review>!
 
   static func fromStoryboard(_ storyboard: UIStoryboard = UIStoryboard(name: "Main", bundle: nil)) -> RestaurantDetailViewController {
+    // ストーリーボードから指定IDのビューコントローラを返す
     let controller = storyboard.instantiateViewController(withIdentifier: "RestaurantDetailViewController") as! RestaurantDetailViewController
     return controller
   }
 
   @IBOutlet var tableView: UITableView!
+  // TOP画像エリアのビュー
   @IBOutlet var titleView: RestaurantTitleView!
 
   let backgroundView = UIImageView()
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    debug("restaurantReference:\(restaurantReference)")
 
     self.title = restaurant?.name
     navigationController?.navigationBar.tintColor = UIColor.white
 
+    // 背景にピザモンスター画像をセットする
     backgroundView.image = UIImage(named: "pizza-monster")!
     backgroundView.contentScaleFactor = 2
     backgroundView.contentMode = .bottom
+    // テーブルビューの背景にピザモンスター画像をセットする
     tableView.backgroundView = backgroundView
     tableView.tableFooterView = UIView()
 
@@ -53,8 +58,15 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
     tableView.rowHeight = UITableViewAutomaticDimension
     tableView.estimatedRowHeight = 140
 
+    // retingsサブコレクションのクエリーオブジェクト生成する
     let query = restaurantReference!.collection("ratings")
+    
+    // LocalCollectionオブジェクトを生成する。ratingsコレクションの参照とアップデートハンドラーを渡す
     localCollection = LocalCollection(query: query) { [unowned self] (changes) in
+      // changes: DocumentChanges
+      debug()
+      
+      // テーブルビューの背景画像を調整する
       if self.localCollection.count == 0 {
         self.tableView.backgroundView = self.backgroundView
         return
@@ -65,30 +77,41 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
 
       // Only care about additions in this block, updating existing reviews probably not important
       // as there's no way to edit reviews.
+      // .addなdocumentChangeだけでfor文する
       for addition in changes.filter({ $0.type == .added }) {
+        // 指定されたドキュメントのインデックス番号を調べる
         let index = self.localCollection.index(of: addition.document)!
+        // インデックスパスを生成する
         let indexPath = IndexPath(row: index, section: 0)
         indexPaths.append(indexPath)
       }
+      // 追加ドキュメントをテーブルビューへ表示させる
       self.tableView.insertRows(at: indexPaths, with: .automatic)
     }
   }
 
   deinit {
+    debug()
+    // リスナーを解放する
     localCollection.stopListening()
   }
 
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
+    debug()
+    // ratingsコレクションのリスナーをセットする
     localCollection.listen()
+    // TOPエリアにテキストをセットする
     titleView.populate(restaurant: restaurant!)
     if let url = titleImageURL {
+      // TOPエリアに背景画像をセットする
       titleView.populateImage(url: url)
     }
   }
 
   override func viewWillDisappear(_ animated: Bool) {
     super.viewWillDisappear(animated)
+    debug()
   }
 
   override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -98,7 +121,10 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
     }
   }
 
+  // ナビバー右ボタン
   @IBAction func didTapAddButton(_ sender: Any) {
+    debug("レビュー投稿画面を表示する")
+    // レビュー投稿画面を表示する
     let controller = NewReviewViewController.fromStoryboard()
     controller.delegate = self
     self.navigationController?.pushViewController(controller, animated: true)
@@ -107,6 +133,7 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
   // MARK: - UITableViewDataSource
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    // Reviewオブジェクトの数を返す
     return localCollection.count
   }
 
@@ -115,26 +142,38 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
     let cell = tableView.dequeueReusableCell(withIdentifier: "ReviewTableViewCell",
                                              for: indexPath) as! ReviewTableViewCell
     let review = localCollection[indexPath.row]
+    // セルにデータをセットする
     cell.populate(review: review)
     return cell
   }
 
   // MARK: - NewReviewViewControllerDelegate
 
+  // 新規レビュー画面のDoneボタンがタップされた
   func reviewController(_ controller: NewReviewViewController, didSubmitFormWithReview review: Review) {
+    //
+    // Review: ユーザーが入力したReview構造体
+    
+    // このレストランへの参照を取得する
     guard let reference = restaurantReference else { return }
+    // このレストランのレビューコレクションを取得する
     let reviewsCollection = reference.collection("ratings")
+    // 自動生成IDを持つ新しいドキュメントのDocumentReferenceを生成する
     let newReviewReference = reviewsCollection.document()
 
     // Writing data in a transaction
 
-    let firestore = Firestore.firestore()
+    let firestore = FB.db
     firestore.runTransaction({ (transaction, errorPointer) -> Any? in
-
+      // transaction: これを使ってread、writeをアトミックに実行する。読み込んだデータがトランザクションの外側で変更されたら、Firestoreはこのブロックをリトライする。５回リトライに失敗したらトランザクションは失敗となる。
+      //              このブロックは数回実行されるため、副作用的を起こさないように気をつける。
+      //              トランザクションはオンラインで実行する必要がある。オフラインだと失敗する。
+      
       // Read data from Firestore inside the transaction, so we don't accidentally
-      // update using staled client data. Error if we're unable to read here.
+      // update using stale client data. Error if we're unable to read here.
       let restaurantSnapshot: DocumentSnapshot
       do {
+        // DocumentReferenceからDocumentSnapshotを取得する
         try restaurantSnapshot = transaction.getDocument(reference)
       } catch let error as NSError {
         errorPointer?.pointee = error
@@ -154,19 +193,25 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
       // same time.
       let newAverage = (Float(restaurant.ratingCount) * restaurant.averageRating + Float(review.rating))
         / Float(restaurant.ratingCount + 1)
-
+      
+      // このレストランのサブコレクションratingsにユーザーの新規レビューのドキュメントを書き込む
       transaction.setData(review.dictionary, forDocument: newReviewReference)
+      // このレストランのドキュメントのフィールドを更新する。
       transaction.updateData([
         "numRatings": restaurant.ratingCount + 1,
         "avgRating": newAverage
         ], forDocument: reference)
       return nil
     }) { (object, error) in
+      // 完了ブロック
       if let error = error {
+        // ブロックが失敗した場合
         print(error)
       } else {
+        // ブロックが成功した場合
         // Pop the review controller on success
         if self.navigationController?.topViewController?.isKind(of: NewReviewViewController.self) ?? false {
+          // レビュー入力画面を閉じる
           self.navigationController?.popViewController(animated: true)
         }
       }
@@ -176,6 +221,7 @@ class RestaurantDetailViewController: UIViewController, UITableViewDataSource, U
 
 }
 
+// TOP画像エリアのビュー
 class RestaurantTitleView: UIView {
 
   @IBOutlet var nameLabel: UILabel!
@@ -211,10 +257,12 @@ class RestaurantTitleView: UIView {
     }
   }
 
+  // TOPエリアに背景画像をセットする
   func populateImage(url: URL) {
     titleImageView.sd_setImage(with: url)
   }
 
+  // TOPエリアにテキストをセットする
   func populate(restaurant: Restaurant) {
     nameLabel.text = restaurant.name
     starsView.rating = Int(restaurant.averageRating.rounded())

@@ -16,6 +16,7 @@
 
 import Foundation
 
+// レストラン構造体
 struct Restaurant {
 
   var name: String
@@ -26,6 +27,7 @@ struct Restaurant {
   var averageRating: Float
   var photo: URL
 
+  // 辞書に変換する
   var dictionary: [String: Any] {
     return [
       "name": name,
@@ -41,7 +43,7 @@ struct Restaurant {
 }
 
 extension Restaurant: DocumentSerializable {
-
+  // 都市名リスト
   static let cities = [
     "Albuquerque",
     "Arlington",
@@ -91,7 +93,7 @@ extension Restaurant: DocumentSerializable {
     "Virginia Beach",
     "Washington"
   ]
-
+  // カテゴリーリスト
   static let categories = [
     "Brunch", "Burgers", "Coffee", "Deli", "Dim Sum", "Indian", "Italian",
     "Mediterranean", "Mexican", "Pizza", "Ramen", "Sushi"
@@ -128,6 +130,7 @@ extension Restaurant: DocumentSerializable {
 
 }
 
+// レビュー構造体
 struct Review {
 
   var rating: Int // Can also be enum
@@ -136,6 +139,7 @@ struct Review {
   var text: String
   var date: Date
 
+  // 構造体を辞書へ変化する
   var dictionary: [String: Any] {
     return [
       "rating": rating,

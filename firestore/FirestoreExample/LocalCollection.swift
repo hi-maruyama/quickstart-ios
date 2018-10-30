@@ -23,14 +23,18 @@ protocol DocumentSerializable {
 
 final class LocalCollection<T: DocumentSerializable> {
 
+  // Reviewのリスト
   private(set) var items: [T]
   private(set) var documents: [DocumentSnapshot] = []
+  // ratingsコレクションのクエリー
   let query: Query
 
+  // テーブルビューへ新しいレビューを追加する
   private let updateHandler: ([DocumentChange]) -> ()
 
   private var listener: ListenerRegistration? {
     didSet {
+      debug()
       oldValue?.remove()
     }
   }
@@ -44,13 +48,17 @@ final class LocalCollection<T: DocumentSerializable> {
   }
 
   init(query: Query, updateHandler: @escaping ([DocumentChange]) -> ()) {
+    debug()
     self.items = []
     self.query = query
     self.updateHandler = updateHandler
   }
 
+  // 指定されたドキュメントのインデックス番号を調べる
   func index(of document: DocumentSnapshot) -> Int? {
+    debug()
     for i in 0 ..< documents.count {
+      // ドキュメントIDが一致するか確認する
       if documents[i].documentID == document.documentID {
         return i
       }
@@ -59,14 +67,20 @@ final class LocalCollection<T: DocumentSerializable> {
     return nil
   }
 
+  // ratingsコレクションのリスナーをセットする
   func listen() {
+    debug()
+    // listenerがnilなら処理を継続する
     guard listener == nil else { return }
+    // ratingsコレクションのリスナーをセットする
     listener = query.addSnapshotListener { [unowned self] querySnapshot, error in
       guard let snapshot = querySnapshot else {
         print("Error fetching snapshot results: \(error!)")
         return
       }
+      // T: Reviewオブジェクトのリストを生成する
       let models = snapshot.documents.map { (document) -> T in
+        // dataをReviewへ変換する
         if let model = T(dictionary: document.data()) {
           return model
         } else {
@@ -74,8 +88,10 @@ final class LocalCollection<T: DocumentSerializable> {
           fatalError("Unable to initialize type \(T.self) with dictionary \(document.data())")
         }
       }
+      // Reviewオブジェクトのリストを保持する
       self.items = models
       self.documents = snapshot.documents
+      // アップデートハンドラーを実行する
       self.updateHandler(snapshot.documentChanges)
     }
   }

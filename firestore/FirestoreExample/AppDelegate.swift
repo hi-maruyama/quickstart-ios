@@ -17,6 +17,22 @@
 import UIKit
 import Firebase
 
+class FB: NSObject {
+  class var db: Firestore {
+    struct Static {
+      static let db : Firestore = {
+        let db = Firestore.firestore()
+        let settings = db.settings
+        // 将来的なデフォルト
+        settings.areTimestampsInSnapshotsEnabled = true
+        db.settings = settings
+        return db
+      }()
+    }
+    return Static.db
+  }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -25,6 +41,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
     FirebaseApp.configure()
+    
     return true
   }
 

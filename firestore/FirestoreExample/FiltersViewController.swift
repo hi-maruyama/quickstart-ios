@@ -20,8 +20,9 @@ class FiltersViewController: UIViewController, UIPickerViewDataSource, UIPickerV
 
   weak var delegate: FiltersViewControllerDelegate?
 
-  static func fromStoryboard(delegate: FiltersViewControllerDelegate? = nil) ->
-      (navigationController: UINavigationController, filtersController: FiltersViewController) {
+  // 名前付きタプルを返す。(navi, filter vc)
+  static func fromStoryboard(delegate: FiltersViewControllerDelegate? = nil) -> (navigationController: UINavigationController, filtersController: FiltersViewController) {
+    // ストーリーボードから指定IDのビューコントローラを返す
     let navController = UIStoryboard(name: "Main", bundle: nil)
         .instantiateViewController(withIdentifier: "FiltersViewController")
         as! UINavigationController
@@ -76,18 +77,24 @@ class FiltersViewController: UIViewController, UIPickerViewDataSource, UIPickerV
     }
   }
 
+  // doneボタン
   @IBAction func didTapDoneButton(_ sender: Any) {
     let price = priceTextField.text.flatMap { self.price(from: $0) }
+    // デリゲートにフィルター条件を伝える
     delegate?.controller(self, didSelectCategory: categoryTextField.text,
                          city: cityTextField.text, price: price, sortBy: sortByTextField.text)
+    // モーダルを閉じる
     navigationController?.dismiss(animated: true, completion: nil)
   }
 
+  // キャンセルボタン
   @IBAction func didTapCancelButton(_ sender: Any) {
     navigationController?.dismiss(animated: true, completion: nil)
   }
 
+  // レストラン一覧画面のフィルタクリアボタンのタップで呼ばれる
   func clearFilters() {
+    debug("フォームをクリアする")
     categoryTextField.text = ""
     cityTextField.text = ""
     priceTextField.text = ""

@@ -98,7 +98,7 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
   }
 
   fileprivate func baseQuery() -> Query {
-    return Firestore.firestore().collection("restaurants").limit(to: 50)
+    return FB.db.collection("restaurants").limit(to: 50)
   }
 
   lazy private var filters: (navigationController: UINavigationController,
@@ -167,7 +167,7 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
 
       // Basic writes
 
-      let collection = Firestore.firestore().collection("restaurants")
+      let collection = FB.db.collection("restaurants")
 
       let restaurant = Restaurant(
         name: name,
@@ -181,7 +181,7 @@ class RestaurantsTableViewController: UIViewController, UITableViewDataSource, U
 
       let restaurantRef = collection.addDocument(data: restaurant.dictionary)
 
-      let batch = Firestore.firestore().batch()
+      let batch = FB.db.batch()
       guard let user = Auth.auth().currentUser else { continue }
       var average: Float = 0
       for _ in 0 ..< 10 {
